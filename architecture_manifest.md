@@ -11,7 +11,7 @@ This file serves as the corpus manifest and structural anchor. `nav/` was skippe
 <!-- Read by the reader at session start (see docs/corpus-format.md §3). Bump corpus-core-version only when a change to docs/corpus-format.md would break an older reader; see the Versioning subsection in that doc. game-version-* fields describe the game build the corpus was authored against (player-supplied at setup; required as of v3); they are orthogonal to corpus-core-version (which is the schema axis). -->
 
 ```
-corpus-core-version: 5
+corpus-core-version: 6
 game-version: "latest"
 game-version-platform: "PC / Steam"
 game-version-as-of: 2026-06-03
