@@ -897,7 +897,7 @@ function renderCity(){
   out+='<circle cx="'+CX+'" cy="'+CY+'" r="'+gr+'" fill="#16222e" stroke="#e8963c" stroke-width="2"/>';
   out+='<circle cx="'+CX+'" cy="'+CY+'" r="'+(gr*0.55)+'" fill="none" stroke="#ffbc6b" stroke-width="1" opacity=".7"/>';
   out+='<circle cx="'+CX+'" cy="'+CY+'" r="'+(gr*0.18)+'" fill="#ffbc6b" opacity=".9"/>';
-  out+='<text x="'+CX+'" y="'+(CY+gr+15)+'" fill="#e8963c" font-size="10" text-anchor="middle" font-family="ui-monospace,monospace" letter-spacing="2" pointer-events="none">GENERATOR</text>';
+  out+='<text x="'+CX+'" y="'+(CY+gr-13)+'" fill="#e8963c" font-size="10" text-anchor="middle" font-family="ui-monospace,monospace" letter-spacing="2" pointer-events="none">GENERATOR</text>';
   svg.innerHTML=out;
 }
 /* ---- colour policy ----
@@ -912,7 +912,7 @@ const SERIES = {
 };
 const TREE_COLOR = {
   heating:"#d95926", resources:"#3987e5", food:"#199e70",
-  industry:"#c98500", laws:"#d55181", none:"#6b7f8c"
+  industry:"#c98500", laws:"#d55181", none:"#93a8b6"
 };
 const STATUS = { over:"rgba(230,103,103,.55)", overLine:"#e66767" };
 
