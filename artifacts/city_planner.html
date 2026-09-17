@@ -1,0 +1,1337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frostpunk City Planner</title>
+<style>
+:root{
+  --bg:#060a0f;
+  --panel:#0b1219;
+  --panel-2:#101a24;
+  --panel-3:#16222e;
+  --line:rgba(127,196,232,.22);
+  --line-soft:rgba(127,196,232,.10);
+  --ice:#7fc4e8;
+  --ice-bright:#c4e8fc;
+  --ice-dim:#3d6d88;
+  --heat:#e8963c;
+  --heat-bright:#ffbc6b;
+  --text:#dae7f0;
+  --muted:#7e98aa;
+  --muted-2:#556b7c;
+  --ok:#6fcf9a;
+  --warn:#e8b84a;
+  --bad:#e8695a;
+  --locked:#a892d6;
+  --mono:ui-monospace,"Cascadia Mono","Consolas","DejaVu Sans Mono",monospace;
+  --sans:"Oswald","Roboto Condensed","Arial Narrow",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg);color:var(--text);font-family:var(--sans);
+  font-size:15px;line-height:1.45;min-height:100vh;
+  background-image:
+    repeating-linear-gradient(0deg, rgba(127,196,232,.022) 0 1px, transparent 1px 4px),
+    radial-gradient(130% 80% at 50% 0%, rgba(40,90,120,.20), transparent 70%);
+}
+h1,h2,h3{font-weight:600;letter-spacing:.06em;margin:0}
+button,input,select{font-family:inherit;font-size:inherit;color:inherit}
+.wrap{max-width:1900px;margin:0 auto;padding:14px}
+.frame{border:1px solid var(--line);border-radius:12px;background:var(--panel);position:relative}
+.frame::after{content:"";position:absolute;inset:3px;border:1px solid var(--line-soft);border-radius:9px;pointer-events:none}
+
+.topbar{display:flex;align-items:center;gap:18px;padding:11px 16px;margin-bottom:11px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;font-size:21px;letter-spacing:.14em;color:var(--ice-bright);text-transform:uppercase;white-space:nowrap}
+.brand .glyph{width:25px;height:25px;border:1px solid var(--heat);border-radius:50%;display:grid;place-items:center;font-size:12px;color:var(--heat-bright);box-shadow:0 0 12px rgba(232,150,60,.35)}
+.bios{flex:1;text-align:center;font-family:var(--mono);font-size:11.5px;color:var(--muted-2);letter-spacing:.1em;min-width:160px}
+.readout{display:flex;gap:9px;flex-wrap:wrap}
+.chip{display:flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:5px;background:var(--panel-2);padding:4px 10px}
+.chip .k{font-size:9.5px;letter-spacing:.16em;color:var(--muted-2);text-transform:uppercase}
+.chip .v{font-family:var(--mono);font-size:15px;color:var(--ice-bright);font-weight:700}
+.chip.heat .v{color:var(--heat-bright)}
+
+.btn{background:transparent;border:1px solid var(--line);border-radius:5px;padding:5px 10px;color:var(--text);cursor:pointer;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;transition:.12s;white-space:nowrap}
+.btn:hover{border-color:var(--ice);background:rgba(127,196,232,.12)}
+.btn.on{background:rgba(127,196,232,.26);border-color:var(--ice-bright);color:#fff}
+.btn.warm:hover{border-color:var(--heat);background:rgba(232,150,60,.14)}
+.btn.warm.on{background:rgba(232,150,60,.28);border-color:var(--heat-bright)}
+.btn.danger:hover{border-color:var(--bad);background:rgba(232,105,90,.16);color:#fff}
+.btn.tiny{padding:2px 7px;font-size:10px}
+.btn.ghost{color:var(--muted)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:5px;overflow:hidden}
+.seg .btn{border:0;border-radius:0;border-right:1px solid var(--line)}
+.seg .btn:last-child{border-right:0}
+.toolbar{display:flex;gap:14px;align-items:center;flex-wrap:wrap;padding:9px 14px;margin-bottom:11px}
+.toolbar .grp{display:flex;gap:7px;align-items:center}
+.toolbar .lbl{font-size:9.5px;letter-spacing:.16em;color:var(--muted-2);text-transform:uppercase}
+select.sel,input.num{background:var(--panel-2);border:1px solid var(--line);border-radius:5px;padding:4px 8px;font-size:12.5px;outline:none}
+select.sel:focus,input.num:focus{border-color:var(--ice)}
+input.num{width:58px;font-family:var(--mono);text-align:right;color:var(--ice-bright)}
+
+.cols{display:grid;grid-template-columns:288px minmax(0,1fr) 330px;gap:11px;align-items:start}
+@media (max-width:1500px){.cols{grid-template-columns:278px minmax(0,1fr)}}
+@media (max-width:1080px){.cols{grid-template-columns:1fr}}
+.pane{padding:11px}
+.pane h2{font-size:10.5px;letter-spacing:.18em;color:var(--muted);text-transform:uppercase;margin-bottom:9px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.pane h2 .hint{font-size:9.5px;letter-spacing:.05em;color:var(--muted-2);text-transform:none}
+
+/* ---------- research-tree filter ---------- */
+.treefilter{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:9px;padding-bottom:9px;border-bottom:1px solid var(--line-soft)}
+.chip2{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line-soft);background:var(--panel-2);
+  border-radius:4px;padding:3px 7px;font-size:10.5px;color:var(--muted);cursor:pointer;transition:.1s}
+.chip2:hover{border-color:var(--ice);color:var(--text)}
+.chip2.on{background:rgba(127,196,232,.22);border-color:var(--ice-bright);color:#fff}
+.chip2 i{width:8px;height:8px;border-radius:2px;display:inline-block}
+.chip2 b{font-family:var(--mono);font-size:9.5px;opacity:.7;font-weight:400}
+
+/* ---------- research tree panel ---------- */
+.treehead{display:flex;align-items:center;gap:7px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ice);margin:11px 0 5px;padding-top:7px;border-top:1px solid var(--line-soft)}
+.treehead i{width:9px;height:9px;border-radius:2px}
+.treehead .cnt{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--muted-2);letter-spacing:0}
+.tnode{display:grid;grid-template-columns:auto 1fr auto;gap:4px 7px;align-items:center;
+  padding:4px 6px;border-radius:5px;cursor:pointer;font-size:12px}
+.tnode:hover{background:rgba(127,196,232,.07)}
+.tnode.on .tn{color:var(--ok)}
+.tnode input{accent-color:#3987e5;cursor:pointer;margin:0}
+.tnode .tc{font-family:var(--mono);font-size:10px;color:var(--muted-2);white-space:nowrap}
+.tnode .tu{grid-column:2/4;font-size:10px;color:var(--muted-2);font-style:italic;margin-top:-2px}
+
+/* ---------- palette ---------- */
+.palette{max-height:calc(100vh - 300px);overflow-y:auto;padding-right:4px}
+.palette::-webkit-scrollbar{width:8px}
+.palette::-webkit-scrollbar-thumb{background:var(--panel-3);border-radius:4px}
+.cat{font-size:9.5px;letter-spacing:.2em;color:var(--ice-dim);text-transform:uppercase;padding:9px 4px 5px;border-top:1px solid var(--line-soft);margin-top:5px}
+.cat:first-child{border-top:0;margin-top:0;padding-top:2px}
+.brow{display:block;width:100%;text-align:left;border:1px solid transparent;border-radius:6px;padding:6px 8px;margin-bottom:3px;cursor:pointer;background:transparent;transition:.1s}
+.brow:hover{background:rgba(127,196,232,.08);border-color:var(--line-soft)}
+.brow.armed{background:linear-gradient(90deg,rgba(232,150,60,.34),rgba(232,150,60,.06));border-color:var(--heat);box-shadow:0 0 0 1px rgba(232,150,60,.25)}
+.brow .r1{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.brow .nm{font-size:13px;letter-spacing:.04em}
+.brow .fp{font-family:var(--mono);font-size:11.5px;color:var(--ice);white-space:nowrap}
+.brow .r2{display:flex;justify-content:space-between;gap:8px;font-family:var(--mono);font-size:10.5px;color:var(--muted-2);margin-top:2px;flex-wrap:wrap}
+.brow.locked .nm{color:var(--locked)}
+.tag{font-size:8.5px;letter-spacing:.1em;padding:1px 4px;border-radius:3px;border:1px solid var(--line-soft);color:var(--muted-2);text-transform:uppercase;white-space:nowrap}
+.tag.law{color:var(--warn);border-color:rgba(232,184,74,.35)}
+.tag.tech{color:var(--locked);border-color:rgba(168,146,214,.4)}
+.tag.free{color:var(--ok);border-color:rgba(111,207,154,.32)}
+.tag.site{color:var(--ice-dim);border-color:rgba(61,109,136,.45)}
+.tag.cold{color:var(--ice);border-color:rgba(127,196,232,.35)}
+
+/* ---------- stage ---------- */
+.stage{padding:8px;display:flex;flex-direction:column;align-items:center;gap:6px}
+.howto{width:100%;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:7px 11px;border-radius:7px;background:var(--panel-2);border:1px solid var(--line-soft);font-size:12px;color:var(--muted)}
+.howto.arming{border-color:var(--heat);background:rgba(232,150,60,.10);color:var(--heat-bright)}
+.howto b{color:var(--ice-bright)}
+.howto .kbd{font-family:var(--mono);font-size:10.5px;border:1px solid var(--line);border-radius:3px;padding:1px 5px;color:var(--text);background:#0a1017}
+svg.city{width:100%;height:auto;max-height:68vh;display:block;touch-action:none;user-select:none}
+svg.city.arming{cursor:crosshair}
+.wedge{cursor:pointer}
+.wedge:hover{filter:brightness(1.45)}
+.freewedge{cursor:crosshair}
+.freewedge:hover{filter:brightness(2.2)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;font-size:10.5px;color:var(--muted);font-family:var(--mono);padding-bottom:4px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+
+/* ---------- rings ---------- */
+.ringlist{display:flex;flex-direction:column;gap:7px}
+.ring{border:1px solid var(--line-soft);border-radius:7px;padding:7px 9px;background:var(--panel-2);transition:.1s}
+.ring.sel{border-color:var(--ice);background:var(--panel-3)}
+.ring .rh{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.ring .rn{font-size:12.5px;letter-spacing:.09em;text-transform:uppercase}
+.ring .rmeta{font-family:var(--mono);font-size:10.5px;color:var(--muted-2)}
+.bar{height:7px;border-radius:4px;background:#0a1017;border:1px solid var(--line-soft);margin-top:5px;overflow:hidden;display:flex}
+.bar .seg2{height:100%;border-right:1px solid rgba(0,0,0,.55)}
+.ring .occ{font-family:var(--mono);font-size:10.5px;margin-top:4px;color:var(--muted)}
+.badge{font-size:8.5px;letter-spacing:.1em;padding:1px 5px;border-radius:3px;text-transform:uppercase}
+.badge.warm{background:rgba(232,150,60,.18);color:var(--heat-bright);border:1px solid rgba(232,150,60,.4)}
+.badge.part{background:rgba(232,184,74,.15);color:var(--warn);border:1px solid rgba(232,184,74,.35)}
+.badge.cold{background:rgba(127,196,232,.10);color:var(--ice);border:1px solid rgba(127,196,232,.3)}
+.badge.over{background:rgba(232,105,90,.18);color:var(--bad);border:1px solid rgba(232,105,90,.45)}
+.contents{margin-top:6px;display:flex;flex-wrap:wrap;gap:4px}
+.pill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line-soft);border-radius:4px;padding:2px 4px 2px 7px;font-size:11px;background:#0a1219;cursor:pointer}
+.pill:hover{border-color:var(--ice)}
+.pill.on{border-color:var(--ice-bright);background:rgba(127,196,232,.16)}
+.pill.lockedp{border-style:dashed;border-color:rgba(168,146,214,.5);color:var(--locked)}
+.pill .qty{font-family:var(--mono);font-size:10px;color:var(--muted-2)}
+.pill .ico{display:grid;place-items:center;width:16px;height:16px;border-radius:3px;border:1px solid var(--line-soft);font-family:var(--mono);font-size:11px;line-height:1;color:var(--muted)}
+.pill .ico:hover{color:#fff}
+.pill .ico.del:hover{background:var(--bad);border-color:var(--bad)}
+.pill .ico.rot:hover{background:var(--ice);border-color:var(--ice);color:#04121c}
+.empty{color:var(--muted-2);font-size:12px;font-style:italic;padding:8px 2px}
+
+/* ---------- inspector ---------- */
+.inspector{position:sticky;bottom:0;margin-top:9px;border:1px solid var(--ice);border-radius:8px;background:var(--panel-3);padding:9px 11px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;box-shadow:0 -4px 18px rgba(0,0,0,.5)}
+.inspector .who{font-size:13px;letter-spacing:.05em;color:var(--ice-bright)}
+.inspector .meta{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.inspector .sp{flex:1}
+
+/* ---------- right rail ---------- */
+.kv{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;padding:3px 0;border-bottom:1px dotted var(--line-soft)}
+.kv:last-child{border-bottom:0}
+.kv .k{color:var(--muted)}
+.kv .v{font-family:var(--mono);color:var(--ice-bright)}
+.kv .v.warm{color:var(--heat-bright)}
+.kv .v.dim{color:var(--muted-2)}
+table.rc{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:4px}
+table.rc th{text-align:left;font-size:9px;letter-spacing:.14em;color:var(--muted-2);text-transform:uppercase;padding:3px 4px;border-bottom:1px solid var(--line-soft);font-weight:600}
+table.rc td{padding:3px 4px;border-bottom:1px dotted var(--line-soft);font-family:var(--mono);font-size:11px}
+table.rc td.n{text-align:right;color:var(--ice)}
+table.rc tr.tier td{color:var(--warn)}
+.note{font-size:11px;color:var(--muted);line-height:1.4;margin-top:8px;padding-top:7px;border-top:1px solid var(--line-soft)}
+.note b{color:var(--ice)}
+.warnbox{border:1px solid rgba(232,184,74,.35);background:rgba(232,184,74,.07);border-radius:6px;padding:7px 9px;font-size:11.5px;color:var(--warn);margin-top:8px;line-height:1.4}
+.calib{display:grid;grid-template-columns:1fr auto;gap:5px 8px;align-items:center;font-size:11.5px;margin-top:4px}
+.calib label{color:var(--muted)}
+details.fold{margin-top:9px}
+details.fold summary{cursor:pointer;font-size:10px;letter-spacing:.16em;color:var(--muted-2);text-transform:uppercase;padding:4px 0;list-style:none}
+details.fold summary::-webkit-details-marker{display:none}
+details.fold summary:before{content:"▸ ";color:var(--ice-dim)}
+details.fold[open] summary:before{content:"▾ "}
+.tabs{display:flex;margin-bottom:9px;border-bottom:1px solid var(--line-soft)}
+.tab{flex:1;background:transparent;border:0;border-bottom:2px solid transparent;padding:6px 4px;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted-2);cursor:pointer}
+.tab.on{color:var(--ice-bright);border-bottom-color:var(--ice)}
+.tab:hover{color:var(--text)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:22px;background:var(--panel-3);border:1px solid var(--bad);color:var(--bad);padding:8px 14px;border-radius:7px;font-size:12.5px;z-index:99;opacity:0;pointer-events:none;transition:opacity .18s}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="frame topbar">
+    <div class="brand"><span class="glyph">✶</span> City Planner</div>
+    <div class="bios" id="bios">RADIAL GRID · ANGULAR × RADIAL TILES</div>
+    <div class="readout">
+      <div class="chip"><span class="k">Wood</span><span class="v" id="totW">0</span></div>
+      <div class="chip"><span class="k">Steel</span><span class="v" id="totS">0</span></div>
+      <div class="chip"><span class="k">Cores</span><span class="v" id="totC">0</span></div>
+      <div class="chip heat"><span class="k">Heat radius</span><span class="v" id="heatR">6</span></div>
+    </div>
+  </div>
+
+  <div class="frame toolbar">
+    <div class="grp">
+      <span class="lbl">Scenario</span>
+      <select class="sel" id="scenario">
+        <option value="new_home">A New Home</option>
+        <option value="refugees">The Refugees</option>
+        <option value="arks">The Arks</option>
+        <option value="winterhome">Fall of Winterhome</option>
+        <option value="endless">Endless Mode</option>
+      </select>
+    </div>
+    <div class="grp">
+      <span class="lbl">Generator range</span>
+      <div class="seg" id="rangeSeg"></div>
+    </div>
+    <div class="grp">
+      <span class="lbl">Show</span>
+      <button class="btn on" id="tShowLocked">Unresearched</button>
+      <button class="btn on warm" id="tShowHeat">Heat zone</button>
+      <button class="btn" id="tShowLabels">Labels</button>
+    </div>
+    <div class="grp">
+      <span class="lbl">Colour by</span>
+      <div class="seg">
+        <button class="btn on" id="cbAvail">Availability</button>
+        <button class="btn" id="cbTree">Research tree</button>
+      </div>
+    </div>
+    <div class="grp" style="margin-left:auto">
+      <button class="btn" id="addRing">+ Ring</button>
+      <button class="btn ghost" id="btnExport">Export</button>
+      <button class="btn ghost" id="btnImport">Import</button>
+      <button class="btn ghost danger" id="btnReset">Reset</button>
+    </div>
+  </div>
+
+  <div class="cols">
+
+    <div class="frame pane">
+      <h2>Buildings <span class="hint">pick one, then click the map</span></h2>
+      <div class="treefilter" id="treeFilter"></div>
+      <div class="palette" id="palette"></div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:11px">
+      <div class="frame stage">
+        <div class="howto" id="howto"></div>
+        <svg class="city" id="city" viewBox="0 0 760 760" role="img" aria-label="Radial city layout around the generator"></svg>
+        <div class="legend" id="legend"></div>
+      </div>
+
+      <div class="frame pane">
+        <h2>Rings <span class="hint">click a chip to select it on the map</span></h2>
+        <div class="ringlist" id="rings"></div>
+        <details class="fold" id="onsiteFold">
+          <summary>Off-grid &amp; on-site buildings</summary>
+          <div class="contents" id="onsite"></div>
+          <div class="note">Mines, drills, steelworks and thumpers sit on a deposit, not in a ring — they cost
+          resources and still need heat from a Steam Hub, but they never eat ring space. Steam Hubs, Shrines
+          and Agitators are <b>1×1 on a road</b> and are treated the same way.</div>
+        </details>
+        <div id="inspectorHost"></div>
+      </div>
+    </div>
+
+    <div class="frame pane">
+      <div class="tabs">
+        <button class="tab on" data-tab="cost">Cost</button>
+        <button class="tab" data-tab="research">Research</button>
+        <button class="tab" data-tab="city">City</button>
+        <button class="tab" data-tab="calib">Model</button>
+      </div>
+
+      <div id="tab-research" style="display:none">
+        <h2>Research trees <span class="hint">tick what you have</span></h2>
+        <div id="research"></div>
+      </div>
+      <div id="tab-cost">
+        <h2>Research reach <span class="hint" id="rcWho">nothing selected</span></h2>
+        <div id="reach"></div>
+      </div>
+      <div id="tab-city" style="display:none">
+        <h2>City totals</h2>
+        <div id="cityTotals"></div>
+      </div>
+      <div id="tab-calib" style="display:none">
+        <h2>Calibration <span class="hint">derived, not published</span></h2>
+        <div class="calib">
+          <label for="cGen">Generator body radius (tiles)</label><input class="num" type="number" id="cGen" min="1" max="12" step="1">
+          <label for="cHeat">Base heat radius (tiles)</label><input class="num" type="number" id="cHeat" min="2" max="24" step="1">
+          <label for="cStep">Per range upgrade (tiles)</label><input class="num" type="number" id="cStep" min="1" max="8" step="1">
+          <label for="cHub">Steam Hub radius (tiles)</label><input class="num" type="number" id="cHub" min="1" max="14" step="1">
+        </div>
+        <div class="warnbox">
+          None of these four numbers is published anywhere — not on the wiki, not in the game's own UI.
+          They are <b>derived</b>: ring capacity is the circumference in tiles at the ring's mid-radius, and the
+          base heat radius is back-solved from a community measurement of how many tents one range upgrade adds.
+          The model runs up to <b>~13% pessimistic</b> on outer rings against the only published measurement
+          that exists, which is itself internally inconsistent. If the game fits more than the planner says,
+          <b>the game is right</b> — change the numbers here.
+        </div>
+        <div class="note">
+          Ring capacity is the circumference in tiles at the ring's mid-radius, <b>round(2π · r)</b>.
+          Only <b>+3 tiles per Generator Range Upgrade</b> comes from the corpus
+          (<b>items/upgrades.md</b>, confidence <i>confirmed</i>); the rest of this panel is inference.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="frame pane" style="margin-top:11px">
+    <details class="fold">
+      <summary>Where these numbers come from</summary>
+      <div class="note" style="border-top:0;padding-top:2px">
+        <b>Footprints, build costs, insulation and unlock requirements</b> — Official Frostpunk Wiki
+        <i>Buildings</i> table, captured 2026-09-16. Footprints are <b>angular × radial</b> tiles: the first
+        number is width along the curve, the second is depth straight out from the generator. The wiki states
+        buildings "may slightly shrink or grow in size to accommodate their surroundings", so no planner can be
+        exact.<br><br>
+        <b>Research costs and prerequisites</b> — this guide's own <b>items/upgrades.md</b>, research-integrated
+        2026-06-03. Build cost and research cost are different numbers and are shown separately.<br><br>
+        <b>Ring capacity, base heat radius and Steam Hub radius</b> — derived. See the Model tab.<br><br>
+        <b>Not modelled:</b> roads and road adjacency, shelter population capacity (unsourced), coal burn per
+        ring, The Last Autumn and On The Edge (both replace the generator heating line with Braziers).
+      </div>
+    </details>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   DATA
+   Footprints, build costs, insulation and unlock requirements: Official Frostpunk
+   Wiki "Buildings" table (captured 2026-09-16). Footprints are angular x radial
+   tiles — width along the curve, then depth straight out from the generator.
+   Research costs, prerequisites and tiers: this guide's items/upgrades.md.
+   ============================================================ */
+const TIERS = [
+  {id:"t1", name:"Drawing Boards",        tier:1, w:50,  s:0},
+  {id:"t2", name:"Drafting Machines",     tier:2, w:75,  s:25},
+  {id:"t3", name:"Mechanical Calculators",tier:3, w:100, s:50},
+  {id:"t4", name:"Difference Engine",     tier:4, w:125, s:75},
+  {id:"t5", name:"Automatic Prototyping", tier:5, w:150, s:100}
+];
+const TECH = {
+  bunkhouse:{name:"Bunkhouse",tier:1,w:20,s:10,pre:null},
+  house:{name:"House",tier:3,w:40,s:25,pre:"bunkhouse"},
+  medpost_up:{name:"Medical Post Upgrade",tier:1,w:20,s:10,pre:null},
+  infirmary:{name:"Infirmary",tier:2,w:30,s:20,pre:"medpost_up"},
+  hothouse:{name:"Hothouse",tier:1,w:20,s:10,pre:null},
+  ind_hothouse:{name:"Industrial Hothouse",tier:3,w:40,s:25,pre:"hothouse"},
+  hunters_gear:{name:"Hunters' Gear",tier:1,w:10,s:0,pre:null},
+  flying_hunters:{name:"Flying Hunters",tier:2,w:30,s:20,pre:"hunters_gear"},
+  faster_gather:{name:"Faster Gathering",tier:0,w:10,s:0,pre:null},
+  depot_up:{name:"Resource Depot Upgrade",tier:1,w:20,s:10,pre:"faster_gather"},
+  large_depot:{name:"Large Resource Depot",tier:2,w:30,s:20,pre:"depot_up"},
+  sawmill:{name:"Sawmill",tier:0,w:10,s:0,pre:null},
+  steam_sawmill:{name:"Steam Sawmill",tier:2,w:30,s:20,pre:"sawmill"},
+  wall_drill:{name:"Wall Drill",tier:1,w:20,s:10,pre:null},
+  steam_drill:{name:"Steam Wall Drill",tier:3,w:40,s:25,pre:"wall_drill"},
+  adv_drill:{name:"Advanced Wall Drill",tier:5,w:120,s:80,pre:"steam_drill"},
+  thumper:{name:"Coal Thumper",tier:1,w:10,s:0,pre:null},
+  steam_thumper:{name:"Steam Coal Thumper",tier:3,w:30,s:20,pre:"thumper"},
+  coal_mining:{name:"Coal Mining",tier:1,w:20,s:10,pre:null},
+  steam_mine:{name:"Steam Coal Mine",tier:3,w:40,s:25,pre:"coal_mining"},
+  adv_mine:{name:"Advanced Coal Mine",tier:5,w:60,s:35,pre:"steam_mine"},
+  kiln:{name:"Charcoal Kiln",tier:1,w:20,s:10,pre:null},
+  steelworks:{name:"Steelworks",tier:0,w:10,s:0,pre:null},
+  steam_steel:{name:"Steam Steelworks",tier:2,w:30,s:20,pre:"steelworks"},
+  adv_steel:{name:"Advanced Steelworks",tier:4,w:50,s:30,pre:"steam_steel"},
+  steam_hub:{name:"Steam Hub",tier:0,w:10,s:0,pre:null},
+  beacon:{name:"Beacon",tier:0,w:10,s:0,pre:null},
+  outpost:{name:"Outpost Depot",tier:2,w:30,s:20,pre:"beacon"},
+  factory:{name:"Factory",tier:2,w:30,s:20,pre:null}
+};
+/* Which Workshop tab each tech sits on — the four research trees, from the
+   corpus (items/upgrades.md section headings). This is what the tree filter
+   filters by, and what the Research panel groups by. */
+const TREES = {
+  heating:  "Heating",
+  resources:"Resources",
+  food:     "Food, Health & Shelter",
+  industry: "Exploration & Industry"
+};
+const TECH_TREE = {
+  steam_hub:"heating",
+  faster_gather:"resources", depot_up:"resources", large_depot:"resources",
+  thumper:"resources", steam_thumper:"resources", coal_mining:"resources",
+  steam_mine:"resources", adv_mine:"resources", kiln:"resources",
+  sawmill:"resources", steam_sawmill:"resources", wall_drill:"resources",
+  steam_drill:"resources", adv_drill:"resources", steelworks:"resources",
+  steam_steel:"resources", adv_steel:"resources",
+  hothouse:"food", ind_hothouse:"food", hunters_gear:"food", flying_hunters:"food",
+  medpost_up:"food", infirmary:"food", bunkhouse:"food", house:"food",
+  beacon:"industry", outpost:"industry", factory:"industry"
+};
+Object.keys(TECH).forEach(id => { TECH[id].tree = TECH_TREE[id] || "industry"; });
+
+const ALL=["new_home","refugees","arks","winterhome","endless"];
+const noArks=["new_home","refugees","winterhome","endless"];
+const B = [
+ {c:"People",n:"Tent",fp:[3,2],cost:[10,0,0],ins:1,gate:null,s:ALL},
+ {c:"People",n:"Bunkhouse",fp:[3,2],cost:[20,10,0],ins:2,gate:{tech:"bunkhouse"},s:ALL},
+ {c:"People",n:"House",fp:[3,2],cost:[35,25,0],ins:3,gate:{tech:"house"},s:ALL},
+ {c:"People",n:"Child Shelter",fp:[5,2],alt:[3,3],cost:[20,5,0],ins:2,gate:{law:"Child Shelters"},s:noArks},
+ {c:"People",n:"Public House",fp:[5,3],cost:[20,10,0],ins:2,gate:{law:"Public House"},s:ALL},
+ {c:"People",n:"Cemetery",fp:[3,2],cost:[10,0,0],ins:0,gate:{law:"Cemetery"},s:ALL},
+ {c:"People",n:"Fighting Arena",fp:[3,2],cost:[15,0,0],ins:0,gate:{law:"Fighting Arena"},s:ALL},
+ {c:"People",n:"Snow Pit",fp:[3,2],cost:[0,0,0],ins:0,gate:{law:"Corpse Disposal"},s:ALL},
+ {c:"Health",n:"Medical Post",fp:[3,2],cost:[25,0,0],ins:1,gate:null,s:ALL},
+ {c:"Health",n:"Infirmary",fp:[5,3],cost:[30,20,1],ins:2,gate:{tech:"infirmary"},s:ALL},
+ {c:"Health",n:"House of Healing",fp:[6,4],cost:[35,10,0],ins:2,gate:{law:"House of Healing"},s:noArks},
+ {c:"Health",n:"Care House",fp:[5,2],alt:[3,3],cost:[25,5,0],ins:2,gate:{law:"Care House"},s:ALL},
+ {c:"Food",n:"Cookhouse",fp:[5,3],cost:[20,0,0],ins:1,gate:null,s:ALL},
+ {c:"Food",n:"Hunters' Hut",fp:[5,3],cost:[20,0,0],ins:2,gate:null,cold:true,s:noArks},
+ {c:"Food",n:"Hunters' Hangar",fp:[5,3],cost:[40,40,0],ins:3,gate:{tech:"flying_hunters"},cold:true,s:noArks},
+ {c:"Food",n:"Hothouse",fp:[6,4],cost:[20,0,1],ins:1,gate:{tech:"hothouse"},s:ALL},
+ {c:"Food",n:"Industrial Hothouse",fp:[6,4],cost:[20,35,2],ins:2,gate:{tech:"ind_hothouse"},s:ALL},
+ {c:"Resources",n:"Resource Depot",fp:[3,2],cost:[40,20,0],ins:0,gate:null,cold:true,s:ALL},
+ {c:"Resources",n:"Large Resource Depot",fp:[6,4],cost:[150,75,0],ins:0,gate:{tech:"large_depot"},cold:true,s:ALL},
+ {c:"Resources",n:"Gathering Post",fp:[3,2],cost:[15,5,0],ins:1,gate:null,s:ALL},
+ {c:"Wood",n:"Sawmill",fp:[5,3],cost:[10,0,0],ins:1,gate:{tech:"sawmill"},s:ALL},
+ {c:"Wood",n:"Steam Sawmill",fp:[5,3],cost:[25,40,0],ins:2,gate:{tech:"steam_sawmill"},s:ALL},
+ {c:"Wood",n:"Wall Drill",fp:[8,5],cost:[20,0,1],ins:1,gate:{tech:"wall_drill"},site:true,s:ALL},
+ {c:"Wood",n:"Steam Wall Drill",fp:[8,5],cost:[20,40,2],ins:2,gate:{tech:"steam_drill"},site:true,s:ALL},
+ {c:"Wood",n:"Advanced Wall Drill",fp:[8,5],cost:[40,80,3],ins:3,gate:{tech:"adv_drill"},site:true,s:ALL},
+ {c:"Coal",n:"Coal Thumper",fp:[6,3],alt:[5,4],cost:[15,0,0],ins:1,gate:{tech:"thumper"},s:ALL},
+ {c:"Coal",n:"Steam Coal Thumper",fp:[6,3],alt:[5,4],cost:[35,25,0],ins:2,gate:{tech:"steam_thumper"},s:ALL},
+ {c:"Coal",n:"Coal Mine",fp:[6,4],cost:[25,10,1],ins:1,gate:{tech:"coal_mining"},site:true,s:ALL},
+ {c:"Coal",n:"Steam Coal Mine",fp:[6,4],cost:[25,40,2],ins:2,gate:{tech:"steam_mine"},site:true,s:ALL},
+ {c:"Coal",n:"Advanced Coal Mine",fp:[6,4],cost:[40,80,3],ins:3,gate:{tech:"adv_mine"},site:true,s:ALL},
+ {c:"Coal",n:"Charcoal Kiln",fp:[5,3],cost:[30,30,0],ins:2,gate:{tech:"kiln"},s:ALL},
+ {c:"Steel",n:"Steelworks",fp:[6,4],cost:[25,0,0],ins:1,gate:{tech:"steelworks"},site:true,s:ALL},
+ {c:"Steel",n:"Steam Steelworks",fp:[6,4],cost:[40,15,0],ins:2,gate:{tech:"steam_steel"},site:true,s:ALL},
+ {c:"Steel",n:"Advanced Steelworks",fp:[6,4],cost:[80,40,0],ins:3,gate:{tech:"adv_steel"},site:true,s:ALL},
+ {c:"Tech",n:"Workshop",fp:[5,2],alt:[3,3],cost:[15,5,0],ins:2,gate:null,s:ALL},
+ {c:"Tech",n:"Steam Hub",fp:[1,1],cost:[20,0,0],ins:0,gate:{tech:"steam_hub"},road:true,s:ALL},
+ {c:"Tech",n:"Beacon",fp:[5,3],cost:[20,35,0],ins:0,gate:{tech:"beacon"},cold:true,s:ALL},
+ {c:"Tech",n:"Outpost Depot",fp:[6,3],cost:[25,45,0],ins:0,gate:{tech:"outpost"},site:true,cold:true,s:["new_home","refugees","winterhome"]},
+ {c:"Tech",n:"Factory",fp:[5,3],cost:[30,15,1],ins:2,gate:{tech:"factory"},s:ALL},
+ {c:"Faith",n:"House of Prayer",fp:[5,2],alt:[3,3],cost:[30,10,0],ins:2,gate:{law:"House of Prayer"},s:ALL},
+ {c:"Faith",n:"Temple",fp:[6,3],alt:[5,4],cost:[40,40,0],ins:3,gate:{law:"The Temple"},s:ALL},
+ {c:"Faith",n:"Faith Keepers",fp:[5,2],alt:[3,3],cost:[40,40,0],ins:2,gate:{law:"Faith Keepers"},s:ALL},
+ {c:"Faith",n:"Shrine",fp:[1,1],cost:[10,10,0],ins:0,gate:{law:"Shrines"},road:true,s:ALL},
+ {c:"Faith",n:"Field Kitchen",fp:[2,2],cost:[5,10,0],ins:3,gate:{law:"Field Kitchens"},s:ALL},
+ {c:"Order",n:"Watchtower",fp:[3,2],cost:[15,5,0],ins:1,gate:{law:"Neighbourhood Watch"},s:ALL},
+ {c:"Order",n:"Guard Station",fp:[3,2],cost:[20,10,0],ins:2,gate:{law:"Guard Stations"},s:ALL},
+ {c:"Order",n:"Prison",fp:[5,3],cost:[40,40,0],ins:3,gate:{law:"Prison"},s:ALL},
+ {c:"Order",n:"Propaganda Centre",fp:[6,4],cost:[40,40,0],ins:3,gate:{law:"Propaganda Centre"},s:ALL},
+ {c:"Order",n:"Agitator",fp:[1,1],cost:[10,10,0],ins:0,gate:{law:"Agitator"},road:true,s:ALL},
+ {c:"Endless",n:"Small Square",fp:[3,2],cost:[10,0,0],ins:0,gate:null,cold:true,s:["endless"]},
+ {c:"Endless",n:"Medium Square",fp:[5,3],cost:[20,0,0],ins:0,gate:null,cold:true,s:["endless"]},
+ {c:"Endless",n:"Large Square",fp:[6,4],cost:[35,25,0],ins:0,gate:null,cold:true,s:["endless"]},
+ {c:"Endless",n:"Small Garden",fp:[3,2],cost:[40,25,0],ins:0,gate:null,cold:true,s:["endless"]},
+ {c:"Endless",n:"Medium Garden",fp:[5,3],cost:[80,50,0],ins:0,gate:null,cold:true,s:["endless"]},
+ {c:"Endless",n:"Large Garden",fp:[6,4],cost:[120,80,1],ins:0,gate:null,cold:true,s:["endless"]},
+ {c:"Endless",n:"Archives",fp:[9,6],cost:[400,250,0],ins:0,gate:null,cold:true,s:["endless"]},
+ {c:"Endless",n:"Builders' Monument",fp:[6,6],cost:[50,100,0],ins:0,gate:null,cold:true,s:["endless"]}
+];
+const byName={}; B.forEach(b=>byName[b.n]=b);
+
+/* ============================================================
+   STATE
+   Each placed item carries f = its angular START position as a
+   fraction of the circle (0 = due north, clockwise). That is what
+   makes "where" a real property instead of list order.
+   ============================================================ */
+const DEFAULT_CALIB={gen:4,heat:6,step:3,hub:6};
+const LS="frostpunk_city_planner_v2";
+let S={
+  scenario:"new_home", range:0,
+  rings:[[],[],[]], onsite:[],
+  calib:{...DEFAULT_CALIB},
+  showLocked:true, showHeat:true, showLabels:false,
+  researched:[],          // tech ids the player has already bought
+  treeFilter:"all",       // which research tree the palette + map emphasise
+  colorBy:"avail"         // "avail" (validated 2-class) | "tree" (6 hues, labels forced)
+};
+
+/* --- research state --- */
+function isResearched(id){ return S.researched.indexOf(id)>=0; }
+function setResearched(id,on){
+  if(on){
+    techChain(id).forEach(t=>{ if(!isResearched(t)) S.researched.push(t); });
+  } else {
+    // un-researching a node also drops everything that depends on it
+    S.researched = S.researched.filter(t => techChain(t).indexOf(id)<0);
+  }
+}
+/* A building is buildable when it needs nothing, or its tech is already bought.
+   Law-gated buildings are never "researched" — they are signed, not bought. */
+function availability(b){
+  if(!b.gate) return "open";
+  if(b.gate.law) return "law";
+  return isResearched(b.gate.tech) ? "open" : "locked";
+}
+function treeOf(b){
+  if(!b.gate) return "none";
+  if(b.gate.law) return "laws";
+  return TECH[b.gate.tech].tree;
+}
+function passesTreeFilter(b){
+  return S.treeFilter==="all" || treeOf(b)===S.treeFilter;
+}
+let armed=null;              // building name armed for placing
+let sel=null;                // {ring:i, idx:j} or {onsite:j}
+let drag=null;               // {ring, idx, grabOffset}
+let VIEW={cx:380, cy:380, sc:1};
+
+function save(){ try{localStorage.setItem(LS,JSON.stringify(S));}catch(e){} }
+function load(){
+  try{
+    const raw=localStorage.getItem(LS); if(!raw) return;
+    const o=JSON.parse(raw);
+    if(o&&Array.isArray(o.rings)) S=Object.assign(S,o,{calib:Object.assign({...DEFAULT_CALIB},o.calib||{})});
+  }catch(e){}
+}
+function toast(msg){
+  const t=document.getElementById("toast");
+  t.textContent=msg; t.classList.add("show");
+  clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove("show"),2200);
+}
+
+/* ============================================================
+   GEOMETRY
+   ============================================================ */
+function footprint(item){
+  const b=byName[item.n]; if(!b) return [0,0];
+  return (item.rot&&b.alt)?b.alt:b.fp;
+}
+function ringDepth(ring){
+  let d=2; ring.forEach(it=>{const f=footprint(it); if(f[1]>d) d=f[1];}); return d;
+}
+function ringGeom(){
+  const out=[]; let inner=S.calib.gen;
+  for(let i=0;i<S.rings.length;i++){
+    const depth=ringDepth(S.rings[i]);
+    const mid=inner+depth/2;
+    const cap=Math.max(1,Math.round(2*Math.PI*mid));
+    const used=S.rings[i].reduce((a,it)=>a+footprint(it)[0],0);
+    out.push({i,inner,outer:inner+depth,depth,mid,cap,used});
+    inner+=depth;
+  }
+  return out;
+}
+function heatRadius(){ return S.calib.heat + S.range*S.calib.step; }
+function ringHeat(g){
+  const h=heatRadius();
+  if(g.outer<=h) return "warm";
+  if(g.inner<h) return "part";
+  return "cold";
+}
+
+/* --- angular interval helpers, all in fractions of the circle --- */
+function norm(f){ return ((f%1)+1)%1; }
+function overlaps(aStart,aW,bStart,bW){
+  // does [aStart,aStart+aW) intersect [bStart,bStart+bW) on a circle?
+  for(let k=-1;k<=1;k++){
+    const s=bStart+k;
+    if(aStart < s+bW - 1e-9 && s < aStart+aW - 1e-9) return true;
+  }
+  return false;
+}
+function fits(ringIdx,startF,widthF,ignoreIdx){
+  const ring=S.rings[ringIdx];
+  if(widthF>1+1e-9) return false;
+  const g=ringGeom()[ringIdx];
+  if(!g) return false;
+  for(let j=0;j<ring.length;j++){
+    if(j===ignoreIdx) continue;
+    const w=footprint(ring[j])[0]/g.cap;
+    if(overlaps(norm(startF),widthF,norm(ring[j].f),w)) return false;
+  }
+  return true;
+}
+/* find a free start near target; returns fraction or null */
+function findSlot(ringIdx,targetF,widthTiles,ignoreIdx){
+  const g=ringGeom()[ringIdx];
+  const cap=g.cap, widthF=widthTiles/cap;
+  if(widthTiles>cap) return null;
+  const targetTile=Math.round(norm(targetF)*cap);
+  for(let d=0; d<=cap; d++){
+    for(const dir of (d===0?[0]:[-1,1])){
+      const t=((targetTile + dir*d)%cap+cap)%cap;
+      const f=t/cap;
+      if(fits(ringIdx,f,widthF,ignoreIdx)) return f;
+    }
+  }
+  return null;
+}
+
+/* ============================================================
+   RESEARCH REACH COST
+   ============================================================ */
+function techChain(id){ const c=[]; let cur=id; while(cur&&TECH[cur]){c.unshift(cur);cur=TECH[cur].pre;} return c; }
+function reachFor(n){
+  const b=byName[n]; if(!b) return null;
+  if(!b.gate) return {kind:"free",rows:[],w:0,s:0};
+  if(b.gate.law) return {kind:"law",law:b.gate.law,rows:[],w:0,s:0};
+  const chain=techChain(b.gate.tech);
+  let maxTier=0; chain.forEach(id=>{if(TECH[id].tier>maxTier)maxTier=TECH[id].tier;});
+  const rows=[];
+  TIERS.filter(t=>t.tier<=maxTier).forEach(t=>rows.push({name:t.name,w:t.w,s:t.s,tier:true}));
+  chain.forEach(id=>rows.push({name:TECH[id].name,w:TECH[id].w,s:TECH[id].s,tier:false}));
+  return {kind:"tech",rows,
+    w:rows.reduce((a,r)=>a+r.w,0), s:rows.reduce((a,r)=>a+r.s,0),
+    direct:{w:TECH[b.gate.tech].w,s:TECH[b.gate.tech].s}};
+}
+function cityResearch(){
+  const need=new Set(), laws=new Set(); let maxTier=0;
+  const all=[]; S.rings.forEach(r=>r.forEach(it=>all.push(it.n))); S.onsite.forEach(it=>all.push(it.n));
+  all.forEach(n=>{
+    const b=byName[n]; if(!b||!b.gate) return;
+    if(b.gate.law){laws.add(b.gate.law);return;}
+    techChain(b.gate.tech).forEach(id=>{need.add(id); if(TECH[id].tier>maxTier)maxTier=TECH[id].tier;});
+  });
+  const RANGE=[{n:"Generator Range Upgrade I",w:20,s:10,t:1},
+               {n:"Generator Range Upgrade II",w:60,s:40,t:3},
+               {n:"Generator Range Upgrade III",w:120,s:80,t:5}];
+  const rangeRows=[];
+  for(let i=0;i<S.range;i++){rangeRows.push(RANGE[i]); if(RANGE[i].t>maxTier)maxTier=RANGE[i].t;}
+  let w=0,s=0;
+  TIERS.filter(t=>t.tier<=maxTier).forEach(t=>{w+=t.w;s+=t.s;});
+  need.forEach(id=>{w+=TECH[id].w;s+=TECH[id].s;});
+  rangeRows.forEach(r=>{w+=r.w;s+=r.s;});
+  return {w,s,techCount:need.size,laws:[...laws],maxTier};
+}
+function buildCost(){
+  let w=0,s=0,c=0,n=0;
+  const add=it=>{const b=byName[it.n]; if(!b)return; w+=b.cost[0];s+=b.cost[1];c+=b.cost[2];n++;};
+  S.rings.forEach(r=>r.forEach(add)); S.onsite.forEach(add);
+  return {w,s,c,n};
+}
+
+/* ============================================================
+   ACTIONS
+   ============================================================ */
+function arm(n){
+  armed = (armed===n) ? null : n;
+  sel = null;
+  renderAll();
+}
+function placeAt(ringIdx,targetF){
+  const b=byName[armed]; if(!b) return;
+  if(b.site||b.road){ S.onsite.push({n:b.n,rot:false,f:0}); armed=null; renderAll(); return; }
+  const w=b.fp[0];
+  const f=findSlot(ringIdx,targetF,w,-1);
+  if(f===null){ toast("Ring "+(ringIdx+1)+" has no free run "+w+" tiles wide. Try another ring."); return; }
+  S.rings[ringIdx].push({n:b.n,rot:false,f});
+  sel={ring:ringIdx,idx:S.rings[ringIdx].length-1};
+  renderAll();
+}
+function removeSel(){
+  if(!sel) return;
+  if(sel.onsite!=null) S.onsite.splice(sel.onsite,1);
+  else S.rings[sel.ring].splice(sel.idx,1);
+  sel=null; renderAll();
+}
+function rotateSel(){
+  if(!sel||sel.onsite!=null) return;
+  const it=S.rings[sel.ring][sel.idx]; const b=byName[it.n];
+  if(!b||!b.alt) return;
+  const want=!it.rot;
+  const wTiles=(want?b.alt:b.fp)[0];
+  const g=ringGeom()[sel.ring];
+  if(fits(sel.ring, it.f, wTiles/g.cap, sel.idx)) it.rot=want;
+  else {
+    const f=findSlot(sel.ring,it.f,wTiles,sel.idx);
+    if(f===null){ toast("No room to rotate it here."); return; }
+    it.rot=want; it.f=f;
+  }
+  renderAll();
+}
+
+/* ============================================================
+   RENDER — palette
+   ============================================================ */
+function gateLabel(b){
+  if(!b.gate) return {cls:"free",txt:"from the start"};
+  if(b.gate.law) return {cls:"law",txt:"law: "+b.gate.law};
+  const t=TECH[b.gate.tech];
+  return isResearched(b.gate.tech)
+    ? {cls:"free",txt:"researched"}
+    : {cls:"tech",txt:TREES[t.tree]+" · "+t.name};
+}
+function renderTreeFilter(){
+  const el=document.getElementById("treeFilter"); if(!el) return;
+  el.innerHTML="";
+  const counts={};
+  B.forEach(b=>{ if(b.s.indexOf(S.scenario)>=0){ const t=treeOf(b); counts[t]=(counts[t]||0)+1; } });
+  const opts=[["all","All"],["heating","Heating"],["resources","Resources"],
+              ["food","Food, Health & Shelter"],["industry","Exploration & Industry"],
+              ["laws","Book of Laws"],["none","No research needed"]];
+  opts.forEach(([k,label])=>{
+    const n = k==="all" ? Object.values(counts).reduce((a,c)=>a+c,0) : (counts[k]||0);
+    if(!n && k!=="all") return;
+    const btn=document.createElement("button");
+    btn.className="chip2"+(S.treeFilter===k?" on":"");
+    btn.innerHTML=(k!=="all"&&k!=="none"?'<i style="background:'+(TREE_COLOR[k]||"#6b7f8c")+'"></i>':'')+
+      esc(label)+' <b>'+n+'</b>';
+    btn.onclick=()=>{ S.treeFilter=k; renderAll(); };
+    el.appendChild(btn);
+  });
+}
+function renderPalette(){
+  renderTreeFilter();
+  const el=document.getElementById("palette"); el.innerHTML=""; let last=null;
+  let shown=0;
+  B.forEach(b=>{
+    if(b.s.indexOf(S.scenario)===-1) return;
+    if(!passesTreeFilter(b)) return;
+    if(b.gate && availability(b)!=="open" && !S.showLocked) return;
+    shown++;
+    if(b.c!==last){ const h=document.createElement("div"); h.className="cat"; h.textContent=b.c; el.appendChild(h); last=b.c; }
+    const g=gateLabel(b);
+    const row=document.createElement("button");
+    row.className="brow"+(availability(b)!=="open"?" locked":"")+(armed===b.n?" armed":"");
+    const cost=[b.cost[0]?b.cost[0]+"W":"",b.cost[1]?b.cost[1]+"S":"",b.cost[2]?b.cost[2]+"◆":""].filter(Boolean).join(" ")||"free";
+    row.innerHTML='<div class="r1"><span class="nm">'+b.n+'</span><span class="fp">'+b.fp[0]+"×"+b.fp[1]+(b.alt?" / "+b.alt[0]+"×"+b.alt[1]:"")+'</span></div>'+
+      '<div class="r2"><span>'+cost+'</span><span class="tag '+g.cls+'">'+g.txt+'</span></div>'+
+      ((b.site||b.road||b.cold)?'<div class="r2">'+
+        (b.site?'<span class="tag site">on site</span>':'')+
+        (b.road?'<span class="tag site">on road</span>':'')+
+        (b.cold?'<span class="tag cold">needs no heat</span>':'')+'</div>':'');
+    row.onclick=()=>arm(b.n);
+    el.appendChild(row);
+  });
+  if(!shown){
+    el.innerHTML='<div class="empty">Nothing in this research tree for this scenario.</div>';
+  }
+}
+
+/* ---------- the research tree itself ---------- */
+function renderResearch(){
+  const el=document.getElementById("research"); if(!el) return;
+  const ids=Object.keys(TECH);
+  let html="";
+  const boughtTier=(()=>{ let m=0; S.researched.forEach(id=>{ if(TECH[id].tier>m) m=TECH[id].tier; }); return m; })();
+  let spentW=0, spentS=0;
+  TIERS.filter(t=>t.tier<=boughtTier).forEach(t=>{spentW+=t.w;spentS+=t.s;});
+  S.researched.forEach(id=>{spentW+=TECH[id].w;spentS+=TECH[id].s;});
+
+  html+='<div class="kv"><span class="k">Researched</span><span class="v">'+S.researched.length+' / '+ids.length+'</span></div>';
+  html+='<div class="kv"><span class="k">Spent on research</span><span class="v warm">'+spentW+'W / '+spentS+'S</span></div>';
+  html+='<div class="kv"><span class="k">Workshop tier reached</span><span class="v">'+boughtTier+'</span></div>';
+  html+='<div class="note">Tick what you have already researched. The palette, the map and the totals all follow — anything still unticked shows as <b>hatched</b> reserved space.</div>';
+
+  Object.keys(TREES).forEach(tree=>{
+    const rows=ids.filter(id=>TECH[id].tree===tree);
+    if(!rows.length) return;
+    const done=rows.filter(isResearched).length;
+    html+='<div class="treehead"><i style="background:'+TREE_COLOR[tree]+'"></i>'+esc(TREES[tree])+
+          '<span class="cnt">'+done+'/'+rows.length+'</span></div>';
+    rows.sort((a,b)=>TECH[a].tier-TECH[b].tier).forEach(id=>{
+      const t=TECH[id], on=isResearched(id);
+      const unlocks=B.filter(b=>b.gate&&b.gate.tech===id).map(b=>b.n);
+      html+='<label class="tnode'+(on?" on":"")+'">'+
+        '<input type="checkbox" data-tech="'+id+'"'+(on?" checked":"")+'>'+
+        '<span class="tn">'+esc(t.name)+'</span>'+
+        '<span class="tc">T'+t.tier+' · '+t.w+'W'+(t.s?"/"+t.s+"S":"")+'</span>'+
+        (unlocks.length?'<span class="tu">'+esc(unlocks.join(", "))+'</span>':'')+
+        '</label>';
+    });
+  });
+  el.innerHTML=html;
+  el.querySelectorAll('input[data-tech]').forEach(cb=>{
+    cb.onchange=()=>{ setResearched(cb.dataset.tech, cb.checked); renderAll(); };
+  });
+}
+
+/* ============================================================
+   RENDER — the city, which is the tool
+   ============================================================ */
+function renderCity(){
+  const svg=document.getElementById("city");
+  const CX=380, CY=380;
+  const G=ringGeom(); const h=heatRadius();
+  const maxR=Math.max(h+2, G.length?G[G.length-1].outer+1:10);
+  const SC=340/maxR;
+  VIEW={cx:CX,cy:CY,sc:SC};
+  const r2p=t=>t*SC;
+  svg.classList.toggle("arming", !!armed);
+
+  // Hatch pattern = the "not researched yet" channel, so availability never
+  // depends on hue alone (dataviz skill: CVD mitigation must be a real second channel).
+  let out='<defs>'+
+    '<pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">'+
+      '<rect width="6" height="6" fill="rgba(10,18,25,.55)"/>'+
+      '<line x1="0" y1="0" x2="0" y2="6" stroke="rgba(255,255,255,.34)" stroke-width="2.2"/>'+
+    '</pattern>'+
+    '</defs>';
+
+  if(S.showHeat){
+    // TWO FLAT ZONES, not a fade. Heat in Frostpunk is in-or-out at a given
+    // radius, so a continuous gradient encodes a smoothness that does not exist
+    // and leaves no readable edge. Warm wash inside, cold wash outside, hard rule between.
+    const outerR = r2p(maxR);
+    out+='<circle cx="'+CX+'" cy="'+CY+'" r="'+outerR+'" fill="#14222e" pointer-events="none"/>';
+    out+='<circle cx="'+CX+'" cy="'+CY+'" r="'+r2p(h)+'" fill="#4a2b0e" pointer-events="none"/>';
+    // the boundary itself, solid and thick enough to find at a glance
+    out+='<circle cx="'+CX+'" cy="'+CY+'" r="'+r2p(h)+'" fill="none" stroke="#e8963c" stroke-width="2.5" pointer-events="none"/>';
+    const hy=CY-r2p(h);
+    out+='<rect x="'+(CX-52)+'" y="'+(hy-9)+'" width="104" height="15" rx="3" fill="#4a2b0e" stroke="#e8963c" stroke-width="1" pointer-events="none"/>';
+    out+='<text x="'+CX+'" y="'+(hy-1.5)+'" fill="#ffbc6b" font-size="9" text-anchor="middle" dominant-baseline="middle" font-family="ui-monospace,monospace" letter-spacing="1" pointer-events="none">HEAT LIMIT · '+h+' TILES</text>';
+  }
+
+  // radius scale: a tick every 2 tiles so distance is countable, not guessed
+  for(let t=2;t<=Math.floor(maxR);t+=2){
+    const rr=r2p(t);
+    out+='<circle cx="'+CX+'" cy="'+CY+'" r="'+rr+'" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="1" pointer-events="none"/>';
+    out+='<text x="'+(CX+4)+'" y="'+(CY-rr-2)+'" fill="rgba(255,255,255,.28)" font-size="8" font-family="ui-monospace,monospace" pointer-events="none">'+t+'</text>';
+  }
+
+  // PASS 1 — every ring's free space. Drawn for ALL rings before ANY building,
+  // so an empty outer ring can never paint over an inner ring's buildings.
+  G.forEach(g=>{
+    const ring=S.rings[g.i];
+    const occ=ring.map((it,j)=>({s:norm(it.f),w:footprint(it)[0]/g.cap,j})).sort((a,b)=>a.s-b.s);
+    // gaps
+    if(occ.length===0){
+      out+=wedge(CX,CY,r2p(g.inner),r2p(g.outer),0,360,"rgba(255,255,255,.035)","rgba(120,148,168,.34)",
+        'class="freewedge" data-free="'+g.i+'" data-f="0"');
+    } else {
+      for(let k=0;k<occ.length;k++){
+        const cur=occ[k], nxt=occ[(k+1)%occ.length];
+        const gapStart=cur.s+cur.w;
+        let gapEnd=nxt.s; if(k===occ.length-1) gapEnd=occ[0].s+1;
+        const gw=gapEnd-gapStart;
+        if(gw>0.002){
+          out+=wedge(CX,CY,r2p(g.inner),r2p(g.outer),gapStart*360-90,gapEnd*360-90,
+            "rgba(255,255,255,.035)","rgba(120,148,168,.34)",
+            'class="freewedge" data-free="'+g.i+'" data-f="'+((gapStart+gapEnd)/2)+'"');
+        }
+      }
+    }
+  });
+
+  // PASS 2 — buildings, always above the free-space layer.
+  G.forEach(g=>{
+    const ring=S.rings[g.i];
+    ring.forEach((it,j)=>{
+      const fp=footprint(it); const b=byName[it.n];
+      const a0=norm(it.f)*360-90, a1=a0+(fp[0]/g.cap)*360;
+      const inner=g.inner, outer=g.inner+fp[1];
+      const isSel = sel && sel.ring===g.i && sel.idx===j;
+      const over = g.used > g.cap;
+      const avail = b ? availability(b) : "open";
+      const dimmed = !passesTreeFilter(b);           // filter = emphasis, not recolour
+      const base = buildingColor(b);
+      const fill = over ? STATUS.over : (dimmed ? "#41525f" : base);
+      const stroke = isSel ? "#ffffff" : (over ? STATUS.overLine : (dimmed ? "#55707f" : base));
+      out+=wedge(CX,CY,r2p(inner),r2p(outer),a0+0.5,a1-0.5,fill,stroke,
+        'class="wedge" data-ring="'+g.i+'" data-idx="'+j+'"'+
+        (isSel?' stroke-width="2.5"':'')+
+        (avail!=="open"?' fill-opacity="0.9"':''));
+      // second channel: anything you cannot build yet is hatched and dash-outlined
+      if(avail!=="open"){
+        out+=wedge(CX,CY,r2p(inner),r2p(outer),a0+0.5,a1-0.5,"url(#hatch)","rgba(255,255,255,.55)",
+          'pointer-events="none" stroke-dasharray="4 3"');
+      }
+      // TREE mode fails the CVD all-pairs check, so its labels are not optional.
+      if((S.showLabels || S.colorBy==="tree") && (a1-a0)>9){
+        const mid=(a0+a1)/2, rr=r2p((inner+outer)/2);
+        out+='<text x="'+(CX+rr*Math.cos(mid*Math.PI/180)).toFixed(1)+'" y="'+(CY+rr*Math.sin(mid*Math.PI/180)).toFixed(1)+
+          '" fill="#eaf4fb" font-size="8" text-anchor="middle" dominant-baseline="middle" font-family="ui-monospace,monospace" opacity=".9" pointer-events="none">'+
+          esc(it.n.slice(0,11))+'</text>';
+      }
+      // delete badge on the selected building, right on the map
+      if(isSel){
+        const mid=(a0+a1)/2, rr=r2p((inner+outer)/2);
+        const bx=CX+rr*Math.cos(mid*Math.PI/180), by=CY+rr*Math.sin(mid*Math.PI/180);
+        out+='<g data-del="1" style="cursor:pointer">'+
+          '<circle cx="'+bx.toFixed(1)+'" cy="'+by.toFixed(1)+'" r="10" fill="#e8695a" stroke="#fff" stroke-width="1.5"/>'+
+          '<text x="'+bx.toFixed(1)+'" y="'+(by+0.5).toFixed(1)+'" fill="#fff" font-size="13" text-anchor="middle" dominant-baseline="middle" font-family="ui-monospace,monospace" pointer-events="none">×</text></g>';
+      }
+    });
+  });
+
+  const gr=r2p(S.calib.gen);
+  out+='<circle cx="'+CX+'" cy="'+CY+'" r="'+gr+'" fill="#16222e" stroke="#e8963c" stroke-width="2"/>';
+  out+='<circle cx="'+CX+'" cy="'+CY+'" r="'+(gr*0.55)+'" fill="none" stroke="#ffbc6b" stroke-width="1" opacity=".7"/>';
+  out+='<circle cx="'+CX+'" cy="'+CY+'" r="'+(gr*0.18)+'" fill="#ffbc6b" opacity=".9"/>';
+  out+='<text x="'+CX+'" y="'+(CY+gr+15)+'" fill="#e8963c" font-size="10" text-anchor="middle" font-family="ui-monospace,monospace" letter-spacing="2" pointer-events="none">GENERATOR</text>';
+  svg.innerHTML=out;
+}
+/* ---- colour policy ----
+   Validated with the dataviz skill's validate_palette.js against this page's
+   own dark surface (#0b1219), --pairs all (any wedge can neighbour any other).
+     AVAIL mode  #3987e5 vs #199e70 : PASS, normal ΔE 20.9, deutan 19.6
+     TREE mode   6 hues             : FAIL, worst deutan ΔE 1.6
+   So TREE mode is offered but never ships colour alone — it forces labels on.  */
+const SERIES = {
+  open:"#3987e5",      // buildable now
+  blocked:"#199e70"    // still needs research or a law
+};
+const TREE_COLOR = {
+  heating:"#d95926", resources:"#3987e5", food:"#199e70",
+  industry:"#c98500", laws:"#d55181", none:"#6b7f8c"
+};
+const STATUS = { over:"rgba(230,103,103,.55)", overLine:"#e66767" };
+
+function buildingColor(b){
+  if(!b) return SERIES.open;
+  if(S.colorBy==="tree") return TREE_COLOR[treeOf(b)]||SERIES.open;
+  return availability(b)==="open" ? SERIES.open : SERIES.blocked;
+}
+
+function wedge(cx,cy,r0,r1,a0,a1,fill,stroke,attrs){
+  const rad=d=>d*Math.PI/180;
+  const span=a1-a0;
+  if(span>=359.9){
+    // A full annulus drawn as two 180-degree arcs per circle. Do NOT close a full
+    // circle with a single arc between near-coincident endpoints: the chord is then
+    // almost zero and the renderer picks an unstable centre, which paints ghost
+    // circles instead of rings (seen on the empty default state, 2026-09-16).
+    // r stays a NUMBER through the arithmetic: cy+"170.0" would concatenate, not add.
+    const circle=(r,sweep)=>{
+      const top=(cy-r).toFixed(1), bot=(cy+r).toFixed(1), rr=r.toFixed(1);
+      return "M"+cx+","+top+
+             " A"+rr+","+rr+" 0 0 "+sweep+" "+cx+","+bot+
+             " A"+rr+","+rr+" 0 0 "+sweep+" "+cx+","+top+" Z";
+    };
+    return '<path '+(attrs||'')+' d="'+circle(r1,1)+" "+circle(r0,0)+
+      '" fill-rule="evenodd" fill="'+fill+'" stroke="'+stroke+'" stroke-width="1"/>';
+  }
+  const large=span>180?1:0;
+  const x0=cx+r1*Math.cos(rad(a0)), y0=cy+r1*Math.sin(rad(a0));
+  const x1=cx+r1*Math.cos(rad(a1)), y1=cy+r1*Math.sin(rad(a1));
+  const x2=cx+r0*Math.cos(rad(a1)), y2=cy+r0*Math.sin(rad(a1));
+  const x3=cx+r0*Math.cos(rad(a0)), y3=cy+r0*Math.sin(rad(a0));
+  const d="M"+x0.toFixed(1)+","+y0.toFixed(1)+" A"+r1.toFixed(1)+","+r1.toFixed(1)+" 0 "+large+" 1 "+x1.toFixed(1)+","+y1.toFixed(1)+
+          " L"+x2.toFixed(1)+","+y2.toFixed(1)+" A"+r0.toFixed(1)+","+r0.toFixed(1)+" 0 "+large+" 0 "+x3.toFixed(1)+","+y3.toFixed(1)+" Z";
+  return '<path '+(attrs||'')+' d="'+d+'" fill="'+fill+'" stroke="'+stroke+'" stroke-width="1"/>';
+}
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+/* --- pointer -> (ring, fraction) --- */
+function pointerPos(e){
+  const svg=document.getElementById("city");
+  // Use the SVG's own transform. A plain width-ratio mapping breaks the moment
+  // max-height letterboxes the viewBox, which puts every click in the wrong place.
+  let ux, uy;
+  const ctm = svg.getScreenCTM && svg.getScreenCTM();
+  if(ctm){
+    const p = svg.createSVGPoint();
+    p.x = e.clientX; p.y = e.clientY;
+    const q = p.matrixTransform(ctm.inverse());
+    ux = q.x; uy = q.y;
+  } else {
+    const r=svg.getBoundingClientRect(), k=760/r.width;
+    ux=(e.clientX-r.left)*k; uy=(e.clientY-r.top)*k;
+  }
+  const x=ux-VIEW.cx, y=uy-VIEW.cy;
+  const rTiles=Math.hypot(x,y)/VIEW.sc;
+  const deg=Math.atan2(y,x)*180/Math.PI;
+  const f=norm((deg+90)/360);
+  const G=ringGeom();
+  let ring=-1;
+  for(const g of G){ if(rTiles>=g.inner && rTiles<g.outer){ ring=g.i; break; } }
+  if(ring<0 && G.length && rTiles>=G[G.length-1].outer) ring=-2; // beyond the city
+  return {ring,f,rTiles};
+}
+
+/* ============================================================
+   RENDER — how-to bar
+   ============================================================ */
+function renderHowto(){
+  const el=document.getElementById("howto");
+  if(armed){
+    const b=byName[armed];
+    el.className="howto arming";
+    el.innerHTML='Placing <b>'+esc(armed)+'</b> ('+b.fp[0]+'×'+b.fp[1]+') — <b>click anywhere on a ring</b> to put it there. '+
+      '<span class="kbd">Esc</span> to stop.';
+  } else if(sel){
+    el.className="howto";
+    const it = sel.onsite!=null ? S.onsite[sel.onsite] : S.rings[sel.ring][sel.idx];
+    el.innerHTML='Selected <b>'+esc(it.n)+'</b> — <b>drag it</b> around the ring, press <span class="kbd">Delete</span>, '+
+      'or click the red <b style="color:var(--bad)">×</b> on the map. Right-click any building to remove it instantly.';
+  } else {
+    el.className="howto";
+    el.innerHTML='<b>Pick a building on the left, then click where you want it.</b> '+
+      'Click a placed building to select it · drag to move it · right-click to remove it.';
+  }
+}
+
+/* ============================================================
+   RENDER — rings + inspector
+   ============================================================ */
+function renderRings(){
+  const el=document.getElementById("rings"); el.innerHTML="";
+  const G=ringGeom();
+  G.forEach(g=>{
+    const ring=S.rings[g.i]; const heat=ringHeat(g); const over=g.used>g.cap;
+    const d=document.createElement("div");
+    d.className="ring"+(sel&&sel.ring===g.i?" sel":"");
+    const badge=over?'<span class="badge over">over by '+(g.used-g.cap)+'</span>'
+      :heat==="warm"?'<span class="badge warm">heated</span>'
+      :heat==="part"?'<span class="badge part">partly heated</span>'
+      :'<span class="badge cold">unheated</span>';
+    let bar="",acc=0;
+    ring.forEach(it=>{
+      const f=footprint(it), b=byName[it.n];
+      bar+='<div class="seg2" style="width:'+Math.min(100,f[0]/Math.max(g.cap,1)*100)+'%;background:'+
+        ((acc+f[0]>g.cap)?"var(--bad)":(b&&b.gate)?"var(--locked)":"var(--ice)")+'"></div>';
+      acc+=f[0];
+    });
+    let freezing=[];
+    if(heat!=="warm") ring.forEach(it=>{const b=byName[it.n]; if(b&&!b.cold&&b.ins>0&&freezing.indexOf(it.n)===-1) freezing.push(it.n);});
+    d.innerHTML='<div class="rh"><span class="rn">Ring '+(g.i+1)+' '+badge+'</span>'+
+      '<span class="rmeta">r '+g.inner+'–'+g.outer+' · depth '+g.depth+'</span></div>'+
+      '<div class="bar">'+bar+'</div>'+
+      '<div class="occ">'+g.used+' / '+g.cap+' angular tiles'+(over?' — <span style="color:var(--bad)">will not fit</span>':' — '+(g.cap-g.used)+' free')+'</div>'+
+      (freezing.length?'<div class="occ" style="color:var(--warn)">needs heat out here: '+freezing.map(esc).join(", ")+
+        ' — a Steam Hub ('+S.calib.hub+'-tile radius) or another range upgrade</div>':'');
+    const cont=document.createElement("div"); cont.className="contents";
+    if(!ring.length){ const e=document.createElement("span"); e.className="empty"; e.textContent="empty — pick a building, then click this ring on the map"; cont.appendChild(e); }
+    ring.forEach((it,j)=>cont.appendChild(pill(it,{ring:g.i,idx:j})));
+    d.appendChild(cont);
+    if(ring.length){
+      const cl=document.createElement("button");
+      cl.className="btn tiny ghost danger"; cl.textContent="clear ring"; cl.style.marginTop="6px";
+      cl.onclick=()=>{ S.rings[g.i]=[]; sel=null; renderAll(); };
+      d.appendChild(cl);
+    }
+    if(g.i===S.rings.length-1 && S.rings.length>1){
+      const rm=document.createElement("button");
+      rm.className="btn tiny ghost"; rm.textContent="remove ring"; rm.style.cssText="margin-top:6px;margin-left:5px";
+      rm.onclick=()=>{ S.rings.pop(); sel=null; renderAll(); };
+      d.appendChild(rm);
+    }
+    el.appendChild(d);
+  });
+
+  const os=document.getElementById("onsite"); os.innerHTML="";
+  if(!S.onsite.length) os.innerHTML='<span class="empty">nothing off-grid yet</span>';
+  else S.onsite.forEach((it,j)=>os.appendChild(pill(it,{onsite:j})));
+
+  // inspector
+  const host=document.getElementById("inspectorHost"); host.innerHTML="";
+  if(sel){
+    const it = sel.onsite!=null ? S.onsite[sel.onsite] : S.rings[sel.ring][sel.idx];
+    if(it){
+      const b=byName[it.n], fp=footprint(it);
+      const box=document.createElement("div"); box.className="inspector";
+      box.innerHTML='<span class="who">'+esc(it.n)+'</span>'+
+        '<span class="meta">'+fp[0]+'×'+fp[1]+' · '+(sel.onsite!=null?'off-grid':'ring '+(sel.ring+1))+'</span><span class="sp"></span>';
+      if(b&&b.alt&&sel.onsite==null){
+        const r=document.createElement("button"); r.className="btn tiny"; r.textContent="Rotate";
+        r.onclick=rotateSel; box.appendChild(r);
+      }
+      const del=document.createElement("button");
+      del.className="btn tiny danger"; del.textContent="Remove";
+      del.onclick=removeSel; box.appendChild(del);
+      const cl=document.createElement("button");
+      cl.className="btn tiny ghost"; cl.textContent="Deselect";
+      cl.onclick=()=>{sel=null;renderAll();}; box.appendChild(cl);
+      host.appendChild(box);
+    }
+  }
+}
+function pill(it,ref){
+  const b=byName[it.n], fp=footprint(it);
+  const on = sel && ((ref.onsite!=null && sel.onsite===ref.onsite) || (ref.idx!=null && sel.ring===ref.ring && sel.idx===ref.idx));
+  const p=document.createElement("span");
+  p.className="pill"+(b&&b.gate?" lockedp":"")+(on?" on":"");
+  p.innerHTML='<span>'+esc(it.n)+'</span><span class="qty">'+fp[0]+"×"+fp[1]+'</span>';
+  p.onclick=e=>{ if(e.target.closest(".ico"))return; sel=ref; renderAll(); };
+  if(b&&b.alt&&ref.onsite==null){
+    const r=document.createElement("span"); r.className="ico rot"; r.textContent="⟳"; r.title="rotate";
+    r.onclick=e=>{e.stopPropagation(); sel=ref; rotateSel();};
+    p.appendChild(r);
+  }
+  const x=document.createElement("span"); x.className="ico del"; x.textContent="✕"; x.title="remove";
+  x.onclick=e=>{e.stopPropagation(); sel=ref; removeSel();};
+  p.appendChild(x);
+  return p;
+}
+
+/* ============================================================
+   RENDER — right rail
+   ============================================================ */
+function renderReach(){
+  const el=document.getElementById("reach"), who=document.getElementById("rcWho");
+  const name = armed || (sel ? (sel.onsite!=null?S.onsite[sel.onsite]:S.rings[sel.ring][sel.idx] || {}).n : null);
+  if(!name){ who.textContent="nothing selected";
+    el.innerHTML='<div class="empty">Pick a building to see everything you must research before you can place it.</div>'; return; }
+  const b=byName[name]; who.textContent=b.n;
+  const r=reachFor(b.n); let h="";
+  h+='<div class="kv"><span class="k">Footprint</span><span class="v">'+b.fp[0]+" × "+b.fp[1]+(b.alt?"  /  "+b.alt[0]+" × "+b.alt[1]:"")+'</span></div>';
+  h+='<div class="kv"><span class="k">Build cost</span><span class="v">'+
+     ((b.cost[0]+b.cost[1]+b.cost[2])===0?"free":(b.cost[0]?b.cost[0]+"W ":"")+(b.cost[1]?b.cost[1]+"S ":"")+(b.cost[2]?b.cost[2]+" core":""))+'</span></div>';
+  h+='<div class="kv"><span class="k">Insulation</span><span class="v">'+b.ins+'</span></div>';
+  if(b.cold) h+='<div class="kv"><span class="k">Heat</span><span class="v warm">operates cold</span></div>';
+  if(r.kind==="free"){
+    h+='<div class="warnbox" style="border-color:rgba(111,207,154,.35);background:rgba(111,207,154,.07);color:var(--ok)">Available from the first day. No research, no law.</div>';
+  } else if(r.kind==="law"){
+    h+='<div class="warnbox">Unlocked by signing the law <b style="color:var(--warn)">'+esc(r.law)+'</b>, not by research. Laws cost time on the Book of Laws, not wood and steel — so no research reach cost, but it does have a queue cost.</div>';
+  } else {
+    h+='<table class="rc"><thead><tr><th>Must research first</th><th style="text-align:right">Wood</th><th style="text-align:right">Steel</th></tr></thead><tbody>';
+    r.rows.forEach(row=>{ h+='<tr class="'+(row.tier?"tier":"")+'"><td>'+esc(row.name)+(row.tier?' <span style="opacity:.6">(tier)</span>':'')+
+      '</td><td class="n">'+(row.w||"–")+'</td><td class="n">'+(row.s||"–")+'</td></tr>'; });
+    h+='</tbody></table>';
+    h+='<div class="kv" style="margin-top:7px"><span class="k">Reach cost (total)</span><span class="v warm">'+r.w+"W / "+r.s+"S</span></div>";
+    h+='<div class="kv"><span class="k">Its own node alone</span><span class="v dim">'+r.direct.w+"W / "+r.direct.s+"S</span></div>";
+    const m=r.direct.w?(r.w/r.direct.w):0;
+    if(m>=1.6) h+='<div class="warnbox">The wiki price for this tech is <b>'+r.direct.w+'W / '+r.direct.s+'S</b>. Getting to it actually costs <b>'+r.w+'W / '+r.s+'S</b> — '+m.toFixed(1)+'× more, because of the tier unlocks and prerequisites stacked underneath. Reserve the ring space now; you will not be building this for a while.</div>';
+  }
+  el.innerHTML=h;
+}
+function renderTotals(){
+  const el=document.getElementById("cityTotals");
+  const bc=buildCost(), cr=cityResearch(), G=ringGeom(), h=heatRadius();
+  const warm=G.filter(g=>ringHeat(g)==="warm").length;
+  const over=G.filter(g=>g.used>g.cap);
+  const locked=[];
+  S.rings.forEach(r=>r.forEach(it=>{const b=byName[it.n]; if(b&&b.gate&&locked.indexOf(it.n)<0) locked.push(it.n);}));
+  S.onsite.forEach(it=>{const b=byName[it.n]; if(b&&b.gate&&locked.indexOf(it.n)<0) locked.push(it.n);});
+  let x="";
+  x+='<div class="kv"><span class="k">Buildings placed</span><span class="v">'+bc.n+'</span></div>';
+  x+='<div class="kv"><span class="k">Build cost</span><span class="v">'+bc.w+"W / "+bc.s+"S"+(bc.c?" / "+bc.c+" cores":"")+'</span></div>';
+  x+='<div class="kv"><span class="k">Research to unlock it all</span><span class="v warm">'+cr.w+"W / "+cr.s+"S</span></div>";
+  x+='<div class="kv"><span class="k">Combined</span><span class="v warm">'+(bc.w+cr.w)+"W / "+(bc.s+cr.s)+"S</span></div>";
+  x+='<div class="kv"><span class="k">Tech nodes needed</span><span class="v">'+cr.techCount+' (to tier '+cr.maxTier+')</span></div>';
+  x+='<div class="kv"><span class="k">Rings fully heated</span><span class="v">'+warm+" / "+G.length+'</span></div>';
+  if(cr.laws.length) x+='<div class="note"><b>Laws you must sign:</b> '+cr.laws.map(esc).join(" · ")+'. These cost queue time, not resources.</div>';
+  if(locked.length) x+='<div class="note"><b>Reserved, not yet buildable:</b> '+locked.map(esc).join(" · ")+'. The space is held for them — that is the point of planning before the unlock.</div>';
+  if(over.length) x+='<div class="warnbox" style="border-color:rgba(232,105,90,.4);background:rgba(232,105,90,.08);color:var(--bad)">'+
+    over.map(g=>"Ring "+(g.i+1)+" is over capacity by "+(g.used-g.cap)+" angular tiles").join("; ")+'.</div>';
+  if(S.range<3){
+    const nh=h+S.calib.step, cover=G.filter(g=>g.outer<=nh).length-warm;
+    const nc=[{w:20,s:10},{w:60,s:40},{w:120,s:80}][S.range];
+    x+='<div class="note"><b>Range Upgrade '+["I","II","III"][S.range]+'</b> costs '+nc.w+'W / '+nc.s+'S research and multiplies generator coal burn by '+["2","3","4"][S.range]+'×. '+
+      'It pushes heat to '+nh+' tiles'+(cover>0?' and brings '+cover+' more ring'+(cover>1?'s':'')+' fully inside it.':', which would not fully cover another ring yet.')+'</div>';
+  }
+  el.innerHTML=x;
+}
+
+/* ============================================================
+   EVENTS — the map
+   ============================================================ */
+const svgEl=document.getElementById("city");
+
+svgEl.addEventListener("mousedown", e=>{
+  if(e.button!==0) return;
+  const delG=e.target.closest('[data-del]');
+  if(delG){ removeSel(); return; }
+  const w=e.target.closest('.wedge');
+  if(w){
+    const ring=+w.dataset.ring, idx=+w.dataset.idx;
+    if(armed){ const p=pointerPos(e); if(p.ring>=0) placeAt(p.ring,p.f); return; }
+    sel={ring,idx};
+    const it=S.rings[ring][idx];
+    const p=pointerPos(e);
+    drag={ring,idx,grab:norm(p.f)-norm(it.f),moved:false};
+    renderAll();
+    return;
+  }
+  const free=e.target.closest('.freewedge');
+  if(free){
+    const p=pointerPos(e);
+    if(armed && p.ring>=0){ placeAt(p.ring,p.f); }
+    else { sel=null; renderAll(); }
+    return;
+  }
+  // clicked empty canvas
+  const p=pointerPos(e);
+  if(armed && p.ring===-2){ S.rings.push([]); renderAll(); placeAt(S.rings.length-1,p.f); return; }
+  sel=null; renderAll();
+});
+
+window.addEventListener("mousemove", e=>{
+  if(!drag) return;
+  const p=pointerPos(e);
+  const it=S.rings[drag.ring][drag.idx];
+  if(!it) { drag=null; return; }
+  // move between rings when the pointer crosses into another band
+  if(p.ring>=0 && p.ring!==drag.ring){
+    const wTiles=footprint(it)[0];
+    const f=findSlot(p.ring, norm(p.f), wTiles, -1);
+    if(f!==null){
+      S.rings[drag.ring].splice(drag.idx,1);
+      S.rings[p.ring].push({...it,f});
+      drag={ring:p.ring,idx:S.rings[p.ring].length-1,grab:0,moved:true};
+      sel={ring:drag.ring,idx:drag.idx};
+      renderAll();
+    }
+    return;
+  }
+  const g=ringGeom()[drag.ring];
+  const want=norm(norm(p.f)-drag.grab);
+  const wF=footprint(it)[0]/g.cap;
+  const snapped=Math.round(want*g.cap)/g.cap;
+  if(fits(drag.ring,snapped,wF,drag.idx)){
+    if(Math.abs(snapped-it.f)>1e-9){ it.f=snapped; drag.moved=true; renderCity(); renderRings(); save(); }
+  }
+});
+window.addEventListener("mouseup", ()=>{ drag=null; });
+
+svgEl.addEventListener("contextmenu", e=>{
+  const w=e.target.closest('.wedge');
+  if(!w) return;
+  e.preventDefault();
+  sel={ring:+w.dataset.ring, idx:+w.dataset.idx};
+  removeSel();
+});
+
+window.addEventListener("keydown", e=>{
+  if(e.key==="Escape"){ armed=null; sel=null; renderAll(); }
+  if((e.key==="Delete"||e.key==="Backspace") && sel){
+    const tag=(e.target.tagName||"").toLowerCase();
+    if(tag==="input"||tag==="select"||tag==="textarea") return;
+    e.preventDefault(); removeSel();
+  }
+});
+
+/* ============================================================
+   WIRING
+   ============================================================ */
+function renderRange(){
+  const seg=document.getElementById("rangeSeg"); seg.innerHTML="";
+  ["Base","+I","+II","+III"].forEach((lab,i)=>{
+    const b=document.createElement("button");
+    b.className="btn warm"+(S.range===i?" on":""); b.textContent=lab;
+    b.onclick=()=>{S.range=i;renderAll();};
+    seg.appendChild(b);
+  });
+}
+function renderLegend(){
+  const el=document.getElementById("legend"); if(!el) return;
+  let h="";
+  h+='<span><i style="background:#3a2411;border:1px solid #e8963c"></i>inside heat</span>';
+  h+='<span><i style="background:#12202c;border:1px solid #33485a"></i>outside heat</span>';
+  if(S.colorBy==="tree"){
+    Object.keys(TREES).forEach(k=>h+='<span><i style="background:'+TREE_COLOR[k]+'"></i>'+TREES[k]+'</span>');
+    h+='<span><i style="background:'+TREE_COLOR.laws+'"></i>Book of Laws</span>';
+  } else {
+    h+='<span><i style="background:'+SERIES.open+'"></i>can build now</span>';
+    h+='<span><i style="background:'+SERIES.blocked+'"></i>needs research / a law</span>';
+  }
+  h+='<span><i style="background:repeating-linear-gradient(45deg,rgba(255,255,255,.5) 0 2px,#2a3a48 2px 5px)"></i>hatched = not unlocked</span>';
+  h+='<span><i style="background:'+STATUS.overLine+'"></i>over capacity</span>';
+  h+='<span><i style="background:#2b3a46"></i>free space — click to build</span>';
+  el.innerHTML=h;
+}
+function renderAll(){
+  document.getElementById("heatR").textContent=heatRadius();
+  const bc=buildCost();
+  document.getElementById("totW").textContent=bc.w;
+  document.getElementById("totS").textContent=bc.s;
+  document.getElementById("totC").textContent=bc.c;
+  renderRange(); renderPalette(); renderHowto(); renderCity(); renderLegend();
+  renderRings(); renderReach(); renderResearch(); renderTotals();
+  document.getElementById("cbAvail").classList.toggle("on", S.colorBy==="avail");
+  document.getElementById("cbTree").classList.toggle("on", S.colorBy==="tree");
+  save();
+}
+
+document.getElementById("scenario").onchange=e=>{S.scenario=e.target.value;armed=null;sel=null;renderAll();};
+document.getElementById("addRing").onclick=()=>{S.rings.push([]);renderAll();};
+document.getElementById("tShowLocked").onclick=e=>{S.showLocked=!S.showLocked;e.target.classList.toggle("on",S.showLocked);renderAll();};
+document.getElementById("tShowHeat").onclick=e=>{S.showHeat=!S.showHeat;e.target.classList.toggle("on",S.showHeat);renderAll();};
+document.getElementById("tShowLabels").onclick=e=>{S.showLabels=!S.showLabels;e.target.classList.toggle("on",S.showLabels);renderAll();};
+document.querySelectorAll(".tab").forEach(t=>{
+  t.onclick=()=>{
+    document.querySelectorAll(".tab").forEach(x=>x.classList.remove("on")); t.classList.add("on");
+    ["cost","research","city","calib"].forEach(k=>document.getElementById("tab-"+k).style.display=(k===t.dataset.tab?"":"none"));
+  };
+});
+document.getElementById("cbAvail").onclick=()=>{S.colorBy="avail";renderAll();};
+document.getElementById("cbTree").onclick=()=>{S.colorBy="tree";renderAll();};
+["gen","heat","step","hub"].forEach(k=>{
+  const el=document.getElementById("c"+k.charAt(0).toUpperCase()+k.slice(1));
+  el.value=S.calib[k];
+  el.oninput=()=>{const v=parseInt(el.value,10); if(!isNaN(v)){S.calib[k]=v;renderAll();}};
+});
+document.getElementById("btnExport").onclick=()=>{
+  const blob=new Blob([JSON.stringify(S,null,2)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download="frostpunk-city-plan.json"; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+};
+document.getElementById("btnImport").onclick=()=>{
+  const inp=document.createElement("input"); inp.type="file"; inp.accept="application/json";
+  inp.onchange=()=>{
+    const f=inp.files[0]; if(!f) return;
+    const fr=new FileReader();
+    fr.onload=()=>{ try{
+      const o=JSON.parse(fr.result);
+      if(o&&Array.isArray(o.rings)){
+        S=Object.assign(S,o,{calib:Object.assign({...DEFAULT_CALIB},o.calib||{})});
+        S.rings.forEach(r=>r.forEach(it=>{ if(typeof it.f!=="number") it.f=0; }));
+        ["gen","heat","step","hub"].forEach(k=>document.getElementById("c"+k.charAt(0).toUpperCase()+k.slice(1)).value=S.calib[k]);
+        document.getElementById("scenario").value=S.scenario;
+        sel=null; armed=null; renderAll();
+      }
+    }catch(e){ toast("That file is not a city plan."); } };
+    fr.readAsText(f);
+  };
+  inp.click();
+};
+document.getElementById("btnReset").onclick=()=>{
+  S.rings=[[],[],[]]; S.onsite=[]; S.range=0; S.calib={...DEFAULT_CALIB};
+  S.researched=[]; S.treeFilter="all"; S.colorBy="avail";
+  sel=null; armed=null;
+  ["gen","heat","step","hub"].forEach(k=>document.getElementById("c"+k.charAt(0).toUpperCase()+k.slice(1)).value=S.calib[k]);
+  renderAll();
+};
+
+load();
+// migrate any legacy plan that had no angular positions
+S.rings.forEach((r,i)=>{ let acc=0; const g=ringGeom()[i];
+  r.forEach(it=>{ if(typeof it.f!=="number"){ it.f=g?acc/g.cap:0; acc+=footprint(it)[0]; } }); });
+document.getElementById("scenario").value=S.scenario;
+document.getElementById("tShowLocked").classList.toggle("on",S.showLocked);
+document.getElementById("tShowHeat").classList.toggle("on",S.showHeat);
+document.getElementById("tShowLabels").classList.toggle("on",S.showLabels);
+renderAll();
+</script>
+</body>
+</html>
