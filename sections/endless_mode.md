@@ -1,7 +1,7 @@
 # Endless Mode -- Reference
 
 **status:** research-integrated
-**last_reconciled:** 2026-06-03 (P3)
+**last_reconciled:** 2026-11-24
 
 A base-game mode (added by the free patch 1.3.0) and in P1 scope. Open-ended survival against **cyclical storms** -- the only non-scripted, sandbox mode. Uses the A New Home tech tree **minus Stereoscopic Lenses and Outpost Depot** (no Outposts in Endless). The Frostland **regenerates after each storm**, and **Relics** are collectible.
 _source: Deep Research handoff 2026-06-02 (3-4 sources) · capture: web_fetch · confidence: medium · enemy-tier: 0 · puzzle-tier: 0 · category: mainline · spoiler: none_
@@ -28,7 +28,8 @@ _source: Deep Research handoff 2026-06-02 (P2, 4 sources) · capture: web_fetch 
 
 ## Builders DLC details
 
-`dlc:endless_builders` · _source: Deep Research P3 handoff 2026-06-03 (fandom Endless mode, Steam discussions, 11 bit studios patch notes) · capture: web_fetch · confidence: high · enemy-tier: 0 · puzzle-tier: 0 · category: mainline · spoiler: none · dlc: endless_builders_
+`dlc:endless_builders`
+_source: Deep Research P3 handoff 2026-06-03 (fandom Endless mode, Steam discussions, 11 bit studios patch notes) · capture: web_fetch · confidence: high · enemy-tier: 0 · puzzle-tier: 0 · category: mainline · spoiler: none · dlc: endless_builders_
 
 **Builders is NOT cosmetic.** 11 bit studios' own patch notes describe it as *"the new variant of the Endless Mode – Builders – that redefines the challenges you'll face by providing different setup and solutions."* Widely described as the hardest endless mode (no heat until ~4th storm).
 

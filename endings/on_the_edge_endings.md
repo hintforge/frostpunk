@@ -1,7 +1,7 @@
 # On The Edge -- Endings Reference
 
 **status:** research-integrated
-**last_reconciled:** 2026-06-03 (P3)
+**last_reconciled:** 2026-11-24
 **dlc:** On The Edge
 
 _source: Deep Research P3 handoff 2026-06-03 (fandom OTE, Steam discussion on ending variants, PSNProfiles) · capture: web_fetch · confidence: high · enemy-tier: 0 · puzzle-tier: 3 · category: mainline · spoiler: story · dlc: on_the_edge_
@@ -19,7 +19,7 @@ Send Coal, Workers, building materials (Steel + Steam Cores), and Food in a 5-da
 - "New London Territory" -- inferred when fewer settlements were loyal
 
 Note: exact text-variant trigger (specific number of loyal settlements) is player-inferred, not officially documented.
-_source: Steam discussion on ending variants · confidence: medium (community-reported; not officially documented)_
+_source: Steam discussion on ending variants · confidence: medium (community-reported; not officially documented) · enemy-tier: 0 · puzzle-tier: 3 · spoiler: story_
 
 Achievement: **We Are In This Together**
 
